@@ -1,3 +1,4 @@
+from sklearn.feature_selection import RFECV
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -37,7 +38,7 @@ data = data[data["Capsaicinoids content (mg/kg DW)"] >= 0]
 
 #(2)数据可视化
 plt.hist(data['Capsaicinoids content (mg/kg DW)'])
-plt.show()
+#plt.show()
 
 C_level = np.array(data['Capsaicinoids content (mg/kg DW)'].astype(float)).tolist()
 #print(C_level)
@@ -59,34 +60,40 @@ data['Capsaicinoids content (mg/kg DW)'] = data['Capsaicinoids content (mg/kg DW
 data = data.set_index("gene_id")
 
 #(4)数据集划分
+list111 = pd.read_csv("SVM_features_select.csv")
+list111.columns = ["1","2"]
+list112 = list111[list111["2"]<=48]["1"]
+list113 = []
+for i in list112:
+    list113.append(i)
+
 X = []
 Y = []
 
 for i in range(len(data)):
-    X.append(np.array(data.iloc[i, 0:119]).tolist())
+    X.append(np.array(data.iloc[i, list113]).tolist())
     Y.append((data.iloc[i, 119]))
 
 X = np.array(X)
 Y = np.array(Y)
 
-# 采用Z-Score规范化数据，保证每个特征维度的数据均值为0，方差为1
 ss = StandardScaler()
 X = ss.fit_transform(X)
 
 #(5)建模与参数选择
-param_grid={
-    "kernel":['linear','rbf','sigmoid'],
-    "C":np.array([0.00001,0.0001,0.001,0.01,0.1,1])
-}
+clf = SVC(C=0.01,kernel='linear')
+clf.fit(X,Y)
 
-model = SVC()
+data = pd.read_excel("./sangping.xls")
+index = data.columns
+data = pd.DataFrame(np.array(data).T)
+data.index = index
+data = data.reset_index()
+print(data)
+X = []
+for i in range(len(data)):
+    X.append(np.array(data.iloc[i, list113]).tolist())
 
-grid=GridSearchCV(model,param_grid=param_grid,cv=80)
-grid.fit(X,Y)
-
-print(grid.best_params_)
-print(grid.best_score_)
-print(grid.best_estimator_)
-print(grid.best_index_)
-
-pd.DataFrame(grid.cv_results_).to_csv("GridSearch_SVM.csv")
+X = np.array(X)
+Y_predict = clf.predict(X)
+print(Y_predict)

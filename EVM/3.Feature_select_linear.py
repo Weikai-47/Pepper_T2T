@@ -1,3 +1,4 @@
+from sklearn.feature_selection import RFECV
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,6 +11,8 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils import shuffle
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import LeaveOneOut
+from sklearn import metrics
 
 data = pd.read_csv("./pepper.csv",sep=',')
 data1 = pd.read_excel("./STab.356_reseq(1).xlsx")[["Sample name","Capsaicinoids content (mg/kg DW)"]]
@@ -59,34 +62,59 @@ data['Capsaicinoids content (mg/kg DW)'] = data['Capsaicinoids content (mg/kg DW
 data = data.set_index("gene_id")
 
 #(4)数据集划分
-X = []
-Y = []
-
-for i in range(len(data)):
-    X.append(np.array(data.iloc[i, 0:119]).tolist())
-    Y.append((data.iloc[i, 119]))
-
-X = np.array(X)
-Y = np.array(Y)
-
 # 采用Z-Score规范化数据，保证每个特征维度的数据均值为0，方差为1
-ss = StandardScaler()
-X = ss.fit_transform(X)
+list_num = []
+list_line = []
+length = 1
 
-#(5)建模与参数选择
-param_grid={
-    "kernel":['linear','rbf','sigmoid'],
-    "C":np.array([0.00001,0.0001,0.001,0.01,0.1,1])
-}
+for i in range(1,200):
+    gene_list = pd.read_csv('SVM_features_select.csv')
+    gene_list.columns = ['num','rank']
+    gene_list = gene_list[gene_list['rank'] <= i]
 
-model = SVC()
+    X = []
+    Y = []
 
-grid=GridSearchCV(model,param_grid=param_grid,cv=80)
-grid.fit(X,Y)
+    for j in range(len(data)):
+        X.append(np.array(data.iloc[j, gene_list['num']]).tolist())
+        Y.append((data.iloc[j, 119]))
 
-print(grid.best_params_)
-print(grid.best_score_)
-print(grid.best_estimator_)
-print(grid.best_index_)
+    X = np.array(X)
+    Y = np.array(Y)
 
-pd.DataFrame(grid.cv_results_).to_csv("GridSearch_SVM.csv")
+    ss = StandardScaler()
+    X = ss.fit_transform(X)
+
+    list_num.append(len(gene_list))
+
+    #(5)建模与特征选择
+    loo = LeaveOneOut()
+    loo.get_n_splits(X)
+
+    SVC_list = []
+
+    for train_index, test_index in loo.split(X):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = Y[train_index], Y[test_index]
+
+        # 采用Z-Score规范化数据，保证每个特征维度的数据均值为0，方差为1
+        # ss = StandardScaler()
+        # X_train = ss.fit_transform(X_train)
+        # X_test = ss.transform(X_test)
+
+        model = SVC(C=0.01,kernel='linear')
+        # 用训练集训练：
+        model.fit(X_train, y_train)
+        # 用测试集预测：
+        prediction = model.predict(X_test)
+        # print('准确率：', metrics.accuracy_score(prediction, y_test))
+        SVC_list.append(metrics.accuracy_score(prediction, y_test))
+
+    print(i)
+    print(sum(SVC_list) / len(SVC_list))
+
+    list_line.append(sum(SVC_list) / len(SVC_list))
+
+list_num = pd.DataFrame(list_num).to_csv('SVM_list_num_linear.csv',index=False)
+list_line = pd.DataFrame(list_line).to_csv('SVM_list_line_linear.csv',index=False)
+

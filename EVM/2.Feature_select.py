@@ -1,3 +1,4 @@
+from sklearn.feature_selection import RFECV
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -21,7 +22,6 @@ data = data.reset_index()
 
 data.columns = data.iloc[0,:]
 data = data.iloc[1:,:]
-
 data = data.merge(data1,left_on="gene_id",right_on="Sample name")
 
 name_list = []
@@ -33,11 +33,10 @@ data = data[name_list]
 data['Capsaicinoids content (mg/kg DW)'] = data['Capsaicinoids content (mg/kg DW)'].astype('float')
 data = data[data["Capsaicinoids content (mg/kg DW)"] >= 0]
 
-#print(data)
 
 #(2)数据可视化
 plt.hist(data['Capsaicinoids content (mg/kg DW)'])
-plt.show()
+#plt.show()
 
 C_level = np.array(data['Capsaicinoids content (mg/kg DW)'].astype(float)).tolist()
 #print(C_level)
@@ -74,19 +73,18 @@ ss = StandardScaler()
 X = ss.fit_transform(X)
 
 #(5)建模与参数选择
-param_grid={
-    "kernel":['linear','rbf','sigmoid'],
-    "C":np.array([0.00001,0.0001,0.001,0.01,0.1,1])
-}
+estimator = SVC(C=0.01,kernel='linear')
 
-model = SVC()
+min_features_to_select = 1
+rfecv = RFECV(
+    estimator=estimator,
+    step=1,
+    cv=80,
+    scoring="accuracy",
+    min_features_to_select=min_features_to_select,
+    n_jobs=10,
+)
+rfecv.fit(X,Y)
 
-grid=GridSearchCV(model,param_grid=param_grid,cv=80)
-grid.fit(X,Y)
-
-print(grid.best_params_)
-print(grid.best_score_)
-print(grid.best_estimator_)
-print(grid.best_index_)
-
-pd.DataFrame(grid.cv_results_).to_csv("GridSearch_SVM.csv")
+list1 = pd.DataFrame(rfecv.ranking_)
+list1.to_csv('SVM_features_select.csv')
