@@ -1,0 +1,29 @@
+## Genome assembly quality
+#1, Install Minimap2 = v2.24; D-GENIES (Online)
+minimap2 -t 50 -x asm5 Ca59_Ref.genome.fasta CaT2T.genome.fasta > CaT2T_Ca59.paf
+Draw the dotplot in D-GENIES website using the above .paf file
+
+#2, Install BUSCO = v5.4.3; Merqury = v1.3; LTR_retriever = v2.9.0
+busco -i CaT2T.genome.fasta -l ./embryophyta_odb10/ -o CaT2T.busco -m genome --force --offline --augustus --cpu 50
+
+meryl k=21 count output CaT2T.read.meryl merged.DH.hifi.fasta
+merqury.sh CaT2T.read.meryl CaT2T.genome.fasta CaT2T.merqury
+
+sed 's/ .*//g' "CaT2T.genome.fasta" > tmp && mv tmp CaT2T.genome.fasta
+perl /path/LTR_FINDER_parallel/LTR_FINDER_parallel -seq CaT2T.genome.fasta -threads 50 -harvest_out
+mv CaT2T.genome.fasta.finder.combine.scn CaT2T.finder.scn
+/path/LTR_retriever/LTR_retriever -threads 50 -genome CaT2T.genome.fasta -inharvest CaT2T.finder.scn
+/path/LTR_retriever/LAI -t 50 -genome CaT2T.genome.fasta -intact CaT2T.genome.fasta.pass.list -all CaT2T.genome.fasta.out
+
+## Genome coverage depth
+#1, mapping the HiFi/ONT/NGS to the CaT2T.genome.fasta
+minimap2 -x map-hifi -t 50 -a -o $out.sam $ref $hifi
+samtools sort -@ 48 -o $out.bam $out.sam
+samtools index $out.bam
+samtools flagstat -@ 48  $out.bam
+samtools view -@ 48 -bF 256 $out.bam > $out.F256.bam
+samtools index $out.F256.bam
+for i in DH_hifi.*.bam; do j=${i%.*} && samtools index $i && samtools bedcov DH.windows.bed  $i > $j.txt; done
+
+#2, draw the coverage depth across the whole genome
+python plot_coverage.depth.py
