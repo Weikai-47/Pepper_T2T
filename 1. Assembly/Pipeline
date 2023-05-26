@@ -1,22 +1,30 @@
-#Genome Suvery
+##Genome Suvery
 #Install Jellyfish = v2.3.0; Genomescope = v1.0
 
 jellyfish count -t 50 -C -m 19 -s 3G DH.NGS.clean_*.fq -o 19mer.jf
 jellyfish histo -t 50 -h 1000000 -o DH19mer.histo 19mer.jf
 Rscript genomescope.R DH19mer.histo 19 150 DH19mer 1000000
 
-#Genome Assembly
-#Install Hifiasm = v0.16.1; NextDenovo = v2.5.0; NextPolish = v1.4.0
+##Genome Assembly
+#Install Hifiasm = v0.16.1; NextDenovo = v2.5.0; NextPolish = v1.4.0; quickmerge = v0.3
 
 hifiasm -o ./DH.110xhifi -t 50 -l0 --hg-size 3.2g -D 10 merged.DH.hifi.fasta # HiFi assembly
 nextDenovo run.nd.cfg && nextPolish run.np.cfg # ONT assembly
+merge_wrapper.py -t 50 -v -l 0 DH.110xhifi.fasta DH.70xont.fasta # Merge two assemblies
+#We recommond to use hifiasm = v0.19.1 to assemble the T2T genome based on HiFi & ONT data together in the future.
 
+##Genome Anchoring
+#Install Juicer = v1.5; 3D-DNA = v180419; Juicebox = v1.11.08
 
-hifiasm
-genome assembly using hifiasm
+bwa index genome.fa
+python generate_site_positions.py HindIII genome ./genome.fa
+awk 'BEGIN{OFS="\t"}{print $1, $NF}' genome_HindIII.txt > genome.chrom.sizes
+bwa mem -K 420000000 -SP5M -t 50 -R "@RG\tID:HiC_DH\tSM:HiC_sample\tPL:ILM\tLB:HiC_library" ./genome.fa HiC_1.fastq.gz HiC_2.fastq.gz > DH.fastq.gz.sam
+awk -v stem=DH.fastq.gz_norm -v site_file=genome_HindIII.txt -f /path/chimeric_sam.awk DH.fastq.gz.sam | samtools sort -t cb -n -m 1G -@ 50 > DH.fastq.gz.bam
+samtools merge -c -t cb -n -@ 50 merged_sort.bam DH.fastq.gz.bam
+samtools view -@ 50 -h DH.fastq.gz.bam | awk -f /path/dups_sam.awk  > merged_dedup.sam
+samtools view -@ 50 -O SAM -F 1024 merged_dedup.sam | awk -v mnd=1 -f /path/sam_to_pre.awk > merged_nodups.txt
+run-asm-pipeline.sh -r 0 -q 0 -i 10000 --editor-repeat-coverage 10 genome.fa merged_nodups.txt
 
-3d-dna
-use juicer and 3d-dna to scaffold contigs with Hi-C reads
-
-data_stat
-statistics and evaluate the assemblies
+##Genome stat
+perl genome_statistic.pl genome.fa
