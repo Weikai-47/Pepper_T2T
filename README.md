@@ -9,6 +9,4 @@ Here, we report telomere-to-telomere (T2T) gap-free genomes for domesticated pep
 
 4 Epigenetic analysis
 
-5 SVM
-
-6 Graph pan-genome
+5 SVM-based classifier
