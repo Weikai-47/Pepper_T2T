@@ -1,0 +1,36 @@
+##ChIP-Seq:
+#Mapping：
+bowtie2 -x $bt2id -1 $read1 -2 $read2 -p 120 |samtools sort -@ 120 -O bam |samtools view -b -F 3844 -q 30 >${sample}.f.bam
+samtools rmdup ${sample}.f.bam ${sample}.rd.bam
+samtools index ${sample}.rd.bam
+bamCoverage -b ${sample}.rd.bam -o ${sample}_10k.rd.bw -bs 10000 --normalizeUsing CPM
+bamCompare -p 120 -b1 ${sample}.rd.bam -b2 ${sample}_in.rd.bam -o ${sample}.log2ratio.bw --normalizeUsing CPM --scaleFactorsMethod None
+
+#Calling peaks:
+macs2 callpeak -t $bam_t -c $bam_c -f BAMPE -g 2.5e9 -n ${sample} --keep-dup auto --outdir ./ 2> ${sample}_macs2.log
+
+
+
+##Methylation：
+#Mapping：
+bismark_genome_preparation ./
+bismark -p 120 --genome_folder ../../ref/ --basename ${sample} -1 $read1 -2 $read2
+samtools sort -@ 120 -o ${sample}_bs.sorted.bam ${sample}_pe.bam
+#Caculating methylation:
+BatMeth2 calmeth -Q 20 --remove_dup --coverage 4 -nC 1 --Regions 500 --step 50000 \
+  --genome $ref \
+  --binput ${sample}_bs.sorted.bam \
+  --methratio ${sample}_bs
+
+
+
+##ATAC-seq：
+#Mapping：
+bowtie2 --very-sensitive -X 2000 -x $bt2id -1 $reads1 -2 $reads2 -p 120 | samtools sort -@ $120 -O bam -o ${sample}.sorted.bam
+picard MarkDuplicates --QUIET true -I ${sample}.sorted.bam -O ${sample}.rmdup.bam -M ${sample}.sorted.metrics --REMOVE_DUPLICATES true --CREATE_INDEX true --VALIDATION_STRINGENCY LENIENT --TMP_DIR ./tmp
+samtools view -h -q 30 ${sample}.rmdup.bam > ${sample}.rmMulti.bam
+samtools view -h -b -F 1804 -f 2 ${sample}.rmMulti.bam > ${sample}.filtered.bam
+#Calling peaks:
+macs2 callpeak -t $bam -n ${sample} --nomodel --shift -75 --extsize 150 -B --SPMR -g 3e9 -f BAMPE --keep-dup all
+idr --samples ${sample}_r12.sort.narrowPeak ${sample}_r23.sort.narrowPeak\
+      --output-file dh_${i}_idr.narrowPeak --plot
