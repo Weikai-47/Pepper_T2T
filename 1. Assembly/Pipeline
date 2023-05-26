@@ -6,10 +6,11 @@ jellyfish histo -t 50 -h 1000000 -o DH19mer.histo 19mer.jf
 Rscript genomescope.R DH19mer.histo 19 150 DH19mer 1000000
 
 #Genome Assembly
-#Install Hifiasm = v0.16.1; NextDenovo = v2.5.0
+#Install Hifiasm = v0.16.1; NextDenovo = v2.5.0; NextPolish = v1.4.0
 
-hifiasm -o ./DH.110xhifi -t 50 -l0 --hg-size 3.2g -D 10 merged.DH.hifi.fasta
-nextDenovo run.nd.cfg
+hifiasm -o ./DH.110xhifi -t 50 -l0 --hg-size 3.2g -D 10 merged.DH.hifi.fasta # HiFi assembly
+nextDenovo run.nd.cfg && nextPolish run.np.cfg # ONT assembly
+
 
 hifiasm
 genome assembly using hifiasm
