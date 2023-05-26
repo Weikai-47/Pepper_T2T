@@ -1,0 +1,21 @@
+#Genome Suvery
+#Install Jellyfish = v2.3.0; Genomescope = v1.0
+
+jellyfish count -t 50 -C -m 19 -s 3G DH.NGS.clean_*.fq -o 19mer.jf
+jellyfish histo -t 50 -h 1000000 -o DH19mer.histo 19mer.jf
+Rscript genomescope.R DH19mer.histo 19 150 DH19mer 1000000
+
+#Genome Assembly
+#Install Hifiasm = v0.16.1; NextDenovo = v2.5.0
+
+hifiasm -o ./DH.110xhifi -t 50 -l0 --hg-size 3.2g -D 10 merged.DH.hifi.fasta
+nextDenovo run.nd.cfg
+
+hifiasm
+genome assembly using hifiasm
+
+3d-dna
+use juicer and 3d-dna to scaffold contigs with Hi-C reads
+
+data_stat
+statistics and evaluate the assemblies
