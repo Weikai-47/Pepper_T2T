@@ -1,0 +1,22 @@
+## TE analysis used for gene annotation
+#Install RepeatMasker = v4.1.2
+
+BuildDatabase -name Capsicum_annuum -engine ncbi CaT2T.genome.fasta
+RepeatModeler -database Capsicum_annuum -engine ncbi -pa 48
+RepeatMasker -xsmall -lib Capsicum_annuum-families.fa -s -no_id -cutoff 255 -frag 20000 -pa 48 -e ncbi -gff -dir .  CaT2T.genome.fasta
+
+
+## TE analysis used for centromere scaning
+#Install EDTA = v2.0.0; TEsorter = v1.3
+EDTA.pl --genome CaT2T.genome.fasta --species others --step all --anno 1 -t 48 
+TEsorter -db rexdb-plant -st nucl -p 52 CaT2T.genome.fasta.mod.LTR.intact.fa
+
+
+## Phylogenetic tree of intact LTR/Gypsy elements
+#Install muscle = 5.1.linux64; trimAl = v1.4.rev15; iqtree = v2.0.3
+grep "#RT" -A1 CaT2T.EDTA.intact_gypsy.fasta.rexdb-plant.cls.pep RT > CaT2T.intact_gypsy_RT.fasta
+muscle -super5 CaT2T.intact_gypsy_RT.fasta -output CaT2T.intact_gypsy_RT.afa
+trimal -in CaT2T.intact_gypsy_RT.afa -out CaT2T.intact_gypsy_RT.afa.tri -fasta -automated1
+iqtree -s CaT2T.intact_gypsy_RT.afa.tri -seed 123 -m JTT+F+R10 -bb 1000 -T AUTO
+treebest nj -t mm -b 100 CaT2T.intact_gypsy_RT.afa.tri > CaT2T.intact_gypsy_RT.afa.tri.treebest100
+treebest nj -t mm -b 1000 CaT2T.intact_gypsy_RT.afa.tri > CaT2T.intact_gypsy_RT.afa.treebest1000
