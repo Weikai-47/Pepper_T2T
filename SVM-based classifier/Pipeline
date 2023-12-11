@@ -1,9 +1,12 @@
-The first script is used to find the best parameters for SVM.
+Here are the datasets and python scripts used in this project.
+(1) Datasets
+1.1 STab.356_reseq(1).xlsx
+This dataset contains Capsaicinoids content of each pepper.
+1.2 capsaicin_cnv_for_mengtan.csv
+This dataset shows the genes' CNVs in each pepper sample.
 
-The second script is used to get the rank of CBG genes.
-
-The third script is used to get the trend of ACC with the increasing numbers of CBG genes.
-
-The forth script is used to visualize the trend of the third setp.
-
-The last script is used to validate this model with some additional datasets. 
+(2) Scripts
+1.1 GridSearch.py
+"In this script, you can see the hyper parameters used in each models' gridsearch. Besides, the best hyperparameters and their results are printed and visualized in this script."
+1.2 FeatureImportances.py
+The genes' importances for Capsaicinoids content with the best model SVM are printed and visualized with word cloud in this script.
