@@ -1,0 +1,24 @@
+## Hyperparameters and Ranges for Machine Learning Models
+
+# Support Vector Machine (Kernel: linear)	
+C: 0.0001 to 10
+
+# Support Vector Machine (Kernel: poly)	
+C: 0.0001 to 10
+Degree: 2 to 10
+
+# Random Forest	
+n_estimators: 10 to 150
+max_depth: 1 to 30
+max_features: None, sqrt, log2
+
+# K Nearest Neighbors	
+n_neighbors: 3 to 10
+weights: uniform, distance
+
+# Gradient Boosting	
+n_estimators: 10 to 150
+learning_rate: 0.01 to 0.2
+max_depth: 1 to 30
+max_features: None, sqrt, log2
+subsample: 0.8 to 1.0
