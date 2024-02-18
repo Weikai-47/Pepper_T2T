@@ -1,12 +1,12 @@
 Here are the datasets and python scripts used in this project.
 (1) Datasets
-1.1 STab.356_reseq(1).xlsx
+1.1 STab.356_reseq.xlsx
 This dataset contains Capsaicinoids content of each pepper.
-1.2 capsaicin_cnv_for_mengtan.csv
+1.2 CBGs_cnv.xlsx
 This dataset shows the genes' CNVs in each pepper sample.
 
 (2) Scripts
 1.1 GridSearch.py
 "In this script, you can see the hyper parameters used in each models' gridsearch. Besides, the best hyperparameters and their results are printed and visualized in this script."
 1.2 FeatureImportances.py
-The genes' importances for Capsaicinoids content with the best model SVM are printed and visualized with word cloud in this script.
+The genes' importances for Capsaicinoids content with the best model are printed and visualized with word cloud in this script.
