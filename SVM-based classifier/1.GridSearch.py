@@ -1,27 +1,26 @@
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import cross_val_score, GridSearchCV, cross_val_predict
+from sklearn.model_selection import cross_val_score, GridSearchCV
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import GradientBoostingClassifier
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import precision_score, recall_score
+import Visualization as vis
+from sklearn.model_selection import StratifiedKFold
+from sklearn.feature_selection import RFECV
+from Feature_Importance import stat_feature_importance
 
 # (1) load and transform the data
-data = pd.read_csv("../capsaicin_cnv_for_mengtan.csv", sep=',')
-data1 = pd.read_excel("../STab.356_reseq(1).xlsx")[["Sample name","Capsaicinoids content (mg/kg DW)"]]
+data = pd.read_excel("../CBGs_cnv.xlsx")
+data1 = pd.read_excel("../STab.356_reseq.xlsx")[["Sample name","Capsaicinoids content (mg/kg DW)"]]
 
 index = data.columns
 data = pd.DataFrame(np.array(data).T)
 data.index = index
 data = data.reset_index()
-
 data.columns = data.iloc[1,:]
 data = data.iloc[2:,:]
-data = data.merge(data1,left_on="geneName",right_on="Sample name")
+data = data.merge(data1,left_on="Gene",right_on="Sample name")
 
 name_list = []
 for i in data.columns:
@@ -47,11 +46,35 @@ def func2(x):
 
 data['Capsaicinoids content (mg/kg DW)'] = data['Capsaicinoids content (mg/kg DW)'].apply(func2).astype(int)
 
-# (2) split the train dataset and test dataset
+# (2) Features selection
 X = data.drop(["SampleID", "Capsaicinoids content (mg/kg DW)"], axis=1)
 y = data["Capsaicinoids content (mg/kg DW)"]
 
-# set the models
+# 初始化一个SVM分类器
+RF = RandomForestClassifier()
+# 使用RFECV进行特征选择，以找到最佳特征数量
+# StratifiedKFold用于确保每个类的样本比例保持一致
+# step表示每次迭代要移除的特征数
+# cv代表交叉验证的策略，这里使用5折交叉验证
+rfecv = RFECV(estimator=RF, step=1, cv=StratifiedKFold(5), scoring='accuracy')
+rfecv.fit(X, y)
+
+# 打印出最佳特征数量
+print("Optimal number of features : %d" % rfecv.n_features_)
+
+# 选择特征
+X_new = rfecv.transform(X)
+
+# 获取被选中的特征的布尔掩码
+selected_features_mask = rfecv.support_
+
+# 使用布尔掩码来获取被选中的特征名称
+selected_features_names = X.columns[selected_features_mask]
+
+print("Selected features names:")
+print(selected_features_names)
+
+# (3) Set the parameters for models
 models = [
     ("Support Vector Machine (Kernal: linear)", SVC(), {"C": [0.0001, 0.001, 0.01, 0.1, 1, 10], "kernel": [ "linear" ]}),
     ("Random Forest", RandomForestClassifier(), {"n_estimators": [10, 50, 100, 150], "max_depth": [1, 10, 20, 30], 'max_features':[None, 'sqrt', 'log2']}),
@@ -71,11 +94,15 @@ acc_scores = {}
 precision_scores = {}
 recall_scores = {}
 
-# (3)train and evaluate the models
+model_list = []
+best_acc = 0
+best_model = None
+
+# (4) train and evaluate the models
 for name, model, params in models:
     # Grid Search the hyperparameters
     grid_search = GridSearchCV(model, params, cv=10, scoring="accuracy")
-    grid_search.fit(X, y)
+    grid_search.fit(X_new, y)
 
     # print the best hyperparameters
     print(f"{name}:")
@@ -84,22 +111,27 @@ for name, model, params in models:
 
     # use the best hyperparameters to test
     model = grid_search.best_estimator_
-    scores1 = cross_val_score(model, X, y, cv=10, scoring="accuracy")
+    model_list.append(model)
+    scores1 = cross_val_score(model, X_new, y, cv=10, scoring="accuracy")
     acc_scores[name] = scores1
 
     # output the outcome
     print("Cross-Validation Scores:")
     print("Accuracy:", scores1.mean())
 
+    if scores1.mean() > best_acc:
+        best_acc = scores1.mean()
+        best_model = model
+
     # Calculate precision and recall
-    scores2 = cross_val_score(model, X, y, cv=10, scoring="precision")
+    scores2 = cross_val_score(model, X_new, y, cv=10, scoring="precision")
     precision_scores[name] = scores2
 
     # output the outcome
     print("Cross-Validation Scores:")
     print("Precision:", scores2.mean())
 
-    scores3 = cross_val_score(model, X, y, cv=10, scoring="recall")
+    scores3 = cross_val_score(model, X_new, y, cv=10, scoring="recall")
     recall_scores[name] = scores3
 
     # output the outcome
@@ -108,31 +140,10 @@ for name, model, params in models:
 
     print("-------------------------------")
 
-# (4)Viualization
-# Generate some random data to represent in the boxplot
-np.random.seed(10)
-data = pd.DataFrame(acc_scores)
+# (5) Viualization
+vis.Visualize_Performance(acc_scores)
 
-# Set the style of the seaborn library
-sns.set_style("whitegrid")
+vis.Draw_ROC_curve(X_new,y,model_list,89)
 
-# Create a figure and a set of subplots
-plt.figure(figsize=(10,6))
-
-# Create the boxplot with additional parameters for better aesthetics
-sns.boxplot(data=data,
-             showmeans=True,
-             meanprops={"marker":"o",
-                        "markerfacecolor":"white",
-                        "markeredgecolor":"black",
-                        "markersize":"10"})
-
-# Set the labels and title
-plt.xlabel('Prediction Algorithms', fontsize=14)
-plt.ylabel('Accuracy', fontsize=14)
-
-# Improve the aesthetics of the plot axes
-plt.tick_params(axis='both', which='major', labelsize=12)
-
-# Show the plot
-plt.show()
+# (6) Statistic Feature importance
+stat_feature_importance(X_new,y,best_model,selected_features_names)
