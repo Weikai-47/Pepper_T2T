@@ -1,36 +1,48 @@
-#!/bin/bash -l
-#SBATCH --job-name=CNVs
-#SBATCH --partition=cuPartition
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=50
-#SBATCH --nodes=1
+fr = open("/data/pepper/CaT2T.CBGs.bed",'r')
 
-#Mapping 
-ID=$SLURM_ARRAY_TASK_ID
-sample=CRR`expr $SLURM_ARRAY_TASK_ID + 246423`
-datadir=/MP_reseq/
-ref=CaT2T.genome.fasta
+REGIONS = []
 
-mkdir $sample
-cd $sample
-bwa mem -t 50 -M -A 1 -B 4 -O 6 -E 1 \
-   -R '@RG\tID:pep'$ID'\tSM:pep'$ID'\tLB:PRJCA004361\tPL:illumina' \
-   $ref ${datadir}${sample}/${sample}_R1.fq ${datadir}${sample}/${sample}_R2.fq \
-   > ${sample}_T2T.sam
-samtools sort -@ 50 -o ${sample}_T2T.bam ${sample}_T2T.sam
-rm ${sample}_T2T.sam
-echo "Mapping done"
+for line in fr:
+    chr = line.strip().split()[0]
+    start = line.strip().split()[1]
+    end = line.strip().split()[2]
+
+    region = chr + ":" + start + "-" + end
+
+    REGIONS.append(region)
+
+print(REGIONS)
 
 
+import glob
 
-#CNV calling
-ID=$SLURM_ARRAY_TASK_ID
-sample=CRR`expr $SLURM_ARRAY_TASK_ID + 246423`
-#samples=("53A" "CTJA" "JJA" "LSA" "NJA" "QYA" "TJA" "XJA" "XMLA")
-#sample=${samples[$ID-1]}
+SAMPLES = [i.split("/")[-2] for i in glob.glob("/data/pepper/*/CRR*_CaT2T.bam")]
 
-cat CaT2T.CBGs.list.sort.bed | while read line 
-do
-region=`echo $line | awk '{print $1 ":" $2 + 1 "-" $3}'`
-samtools coverage -H -r $region ../${sample}/${sample}_DH.bam >> covfiles/${sample}.caps.cov
-done
+print(SAMPLES)
+print("Total sample size: ",len(SAMPLES))
+
+
+rule all:
+    input:
+        expand("{sample}/{sample}_{region}.CN",sample=SAMPLES,region=REGIONS)
+
+
+rule amycne:
+    input:
+        gc = "/data/pepper/gc_content.tab",
+        cov = "{sample}/{sample}.regions.bed"
+    output:
+        "{sample}/{sample}_{region}.CN"
+    threads:
+        4
+    resources:
+        mem_mb = 8000
+    params:
+        "{region}"
+    shell:
+        """
+        python /home/biotools/AMYCNE-master/AMYCNE.py \
+        --genotype --gc {input.gc} \
+        --coverage  {input.cov} \
+        --R {params} > {output}
+        """
